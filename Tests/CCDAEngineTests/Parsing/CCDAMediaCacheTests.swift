@@ -13,7 +13,7 @@ final class CCDAMediaCacheTests: XCTestCase {
         let document = try engine.parse(data: Data(Self.mediaXML.utf8))
         let media = try XCTUnwrap(document.sections.first?.media.first)
 
-        XCTAssertEqual(media.id, "media-1")
+        XCTAssertTrue(media.id.hasPrefix("m:"))
         XCTAssertEqual(media.mediaType, .textPlain)
         XCTAssertEqual(media.mediaType.mimeType, "text/plain")
         XCTAssertEqual(media.representation, .base64)
@@ -66,14 +66,14 @@ final class CCDAMediaCacheTests: XCTestCase {
         let media = try XCTUnwrap(document.sections.first?.media.first)
         let cacheURL = try XCTUnwrap(media.payload.fileURL)
 
-        XCTAssertEqual(media.id, "media-1")
+        XCTAssertTrue(media.id.hasPrefix("m:"))
         XCTAssertEqual(media.mediaType, .textPlain)
         XCTAssertEqual(media.representation, .base64)
         XCTAssertEqual(media.payload.byteCount, 5)
         XCTAssertEqual(try media.loadData(), Data("hello".utf8))
         XCTAssertTrue(media.isCached)
         XCTAssertTrue(FileManager.default.fileExists(atPath: cacheURL.path))
-        XCTAssertEqual(cacheURL.deletingPathExtension().lastPathComponent, "media-1")
+        XCTAssertTrue(cacheURL.deletingPathExtension().lastPathComponent.hasPrefix("m-"))
         XCTAssertEqual(cacheURL.pathExtension, "txt")
     }
 
@@ -95,15 +95,40 @@ final class CCDAMediaCacheTests: XCTestCase {
         let media = try XCTUnwrap(document.sections.first?.media.first)
         let cacheURL = try XCTUnwrap(media.payload.fileURL)
 
-        XCTAssertEqual(media.id, "media-1")
+        XCTAssertTrue(media.id.hasPrefix("m:"))
         XCTAssertEqual(media.mediaType, .textPlain)
         XCTAssertEqual(media.representation, .base64)
         XCTAssertEqual(media.payload.byteCount, 5)
         XCTAssertEqual(try media.loadData(), Data("hello".utf8))
         XCTAssertTrue(media.isCached)
         XCTAssertTrue(FileManager.default.fileExists(atPath: cacheURL.path))
-        XCTAssertEqual(cacheURL.deletingPathExtension().lastPathComponent, "media-1")
+        XCTAssertTrue(cacheURL.deletingPathExtension().lastPathComponent.hasPrefix("m-"))
         XCTAssertEqual(cacheURL.pathExtension, "txt")
+    }
+
+    func testCachesSectionMediaBeforeLaterXMLFailure() throws {
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        defer {
+            try? FileManager.default.removeItem(at: cacheDirectory)
+        }
+
+        let engine = CCDAEngine(
+            configuration: CCDAEngineConfiguration(
+                mediaStoragePolicy: .cacheToDisk,
+                mediaCacheDirectory: cacheDirectory
+            )
+        )
+
+        XCTAssertThrowsError(try engine.parse(data: Data(Self.mediaXMLWithBrokenTrailingSection.utf8)))
+
+        let cachedFiles = try FileManager.default.contentsOfDirectory(
+            at: cacheDirectory,
+            includingPropertiesForKeys: nil
+        )
+
+        XCTAssertEqual(cachedFiles.count, 1)
+        XCTAssertEqual(try Data(contentsOf: cachedFiles[0]), Data("hello".utf8))
     }
 
     private static let mediaXML = """
@@ -145,4 +170,20 @@ final class CCDAMediaCacheTests: XCTestCase {
     private static let unsupportedMediaXML = mediaXML
         .replacingOccurrences(of: #"mediaType="text/plain""#, with: #"mediaType="application/dicom""#)
         .replacingOccurrences(of: #"representation="B64""#, with: #"representation="CUSTOM""#)
+
+    private static let mediaXMLWithBrokenTrailingSection = mediaXML
+        .replacingOccurrences(
+            of: """
+                    </structuredBody>
+                </component>
+            </ClinicalDocument>
+            """,
+            with: """
+                    <component>
+                        <section>
+                            <title>Broken
+                </structuredBody>
+            </ClinicalDocument>
+            """
+        )
 }

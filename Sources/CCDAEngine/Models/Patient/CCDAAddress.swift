@@ -2,8 +2,8 @@ import Foundation
 
 /// Postal address information from a C-CDA patient role or related party.
 public struct CCDAAddress: Hashable, Sendable {
-    /// C-CDA address use code, such as home or work.
-    public let use: String?
+    /// C-CDA address use, such as home or work.
+    public let use: CCDAAddressUse
     /// Street address lines in document order.
     public let streetLines: [String]
     /// City or locality.
@@ -17,7 +17,7 @@ public struct CCDAAddress: Hashable, Sendable {
 
     /// Creates a postal address value.
     public init(
-        use: String? = nil,
+        use: CCDAAddressUse = .unknown,
         streetLines: [String] = [],
         city: String? = nil,
         state: String? = nil,

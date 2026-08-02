@@ -21,7 +21,7 @@ public struct CCDASection: Identifiable, Sendable {
 
     /// Creates a structured C-CDA section.
     public init(
-        id: String? = nil,
+        id: String,
         templateIds: [CCDATemplateId] = [],
         code: CCDACodedValue? = nil,
         kind: CCDASectionKind? = nil,
@@ -30,7 +30,7 @@ public struct CCDASection: Identifiable, Sendable {
         entries: [CCDAEntry] = [],
         media: [CCDAMedia] = []
     ) {
-        self.id = id ?? code?.code ?? title ?? UUID().uuidString
+        self.id = id
         self.templateIds = templateIds
         self.code = code
         self.kind = kind ?? CCDASectionKind(code: code?.code)
